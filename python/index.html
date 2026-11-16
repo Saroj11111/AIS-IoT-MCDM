@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} img{max-width:100%} [hidden]{display:none!important}</style>
+<title>AIS Ranking Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky header + tab bar over one centred column; each tab is a stack of panels. */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#13222B; --muted:#586873; --line:#D9E1E5; --soft:#E9EFF1;
+  --m1:#2E6BD6; --m2:#C9711C; --m3:#7B4FC4; --m4:#0F7A84;
+  --yes:#1E8550; --no:#B4473A; --hot:#D2453A; --accent:#0F7A84;
+  --f-head:"Space Grotesk",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-num:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E161B; --surface:#152129; --ink:#E4ECF0; --muted:#94A6B0; --line:#273740; --soft:#1C2A33;
+  --m1:#79A6F2; --m2:#EDA45C; --m3:#AE8EE6; --m4:#45B7C0; --yes:#4CC386; --no:#E57B6E; --hot:#F0705F; --accent:#45B7C0; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0E161B; --surface:#152129; --ink:#E4ECF0; --muted:#94A6B0; --line:#273740; --soft:#1C2A33;
+  --m1:#79A6F2; --m2:#EDA45C; --m3:#AE8EE6; --m4:#45B7C0; --yes:#4CC386; --no:#E57B6E; --hot:#F0705F; --accent:#45B7C0; color-scheme:dark; }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px;padding-block:14px 8px}
+h1{font:700 22px/1.2 var(--f-head);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.pill.warn{color:var(--m2);border-color:color-mix(in srgb,var(--m2) 45%,var(--line))}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
+nav.tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,td.tog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:22px 48px}
+section.view{display:flex;flex-direction:column;gap:18px}
+section.view[hidden]{display:none}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font:600 18px/1.25 var(--f-head);margin:0 0 4px}
+h3{font:600 15px/1.3 var(--f-head);margin:0 0 6px}
+p{margin:0 0 10px;max-width:68ch}
+.note{color:var(--muted);font-size:13px}
+.eyebrow{font:600 11px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+th{background:var(--soft);font-weight:600;font-size:12.5px;color:var(--muted)}
+td.l,th.l{text-align:left}
+tr:last-child td{border-bottom:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:13px}
+.y{color:var(--yes);font-weight:700}.n{color:var(--no);font-weight:700}
+td.tog{cursor:pointer;user-select:none}
+td.tog:hover{background:var(--soft)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px}
+.m1{color:var(--m1)}.m2{color:var(--m2)}.m3{color:var(--m3)}.m4{color:var(--m4)}
+.bg1{background:var(--m1)}.bg2{background:var(--m2)}.bg3{background:var(--m3)}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,195px),1fr))}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface);border-top:4px solid var(--c)}
+.card .big{font:700 30px/1.1 var(--f-head)}
+.card .lab{font-size:13px;color:var(--muted)}
+.rank1{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+button,.btn{font:600 13px var(--f-body);padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button:hover{border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.levels{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.lv{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.lv label{font-size:12.5px;font-weight:600}
+.lv .val{font:600 13px var(--f-num)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.ok{color:var(--yes);font-weight:600}.bad{color:var(--no);font-weight:600}
+svg text{fill:var(--muted);font:12px var(--f-body)}
+svg .lbl{fill:var(--ink);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.heat{font-family:var(--f-num);font-size:12.5px}
+.heat td.nf{color:var(--muted);opacity:.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--f-num)}
+details summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--accent)}
+.steps{margin:0;padding-left:18px;font-size:13.5px} .steps li{margin-bottom:4px}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="hrow">
+      <div>
+        <h1>Ranking AIS Solutions for IoT Security</h1>
+        <div class="sub">MCDM prototype · Aila Rainelle Medina · Rohan Bhandari · Saroj Dahal</div>
+      </div>
+      <div class="row"><span class="pill warn" id="dataBadge">Sample data · hypothetical</span><span class="pill" id="sizeBadge"></span></div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview">Overview</a><a href="#data">Data</a><a href="#weights">Weights</a><a href="#rankings">Rankings</a><a href="#sensitivity">Sensitivity</a><a href="#method">Method</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+<!-- ================= OVERVIEW ================= -->
+<section class="view" id="v-overview">
+  <div class="panel">
+    <div class="eyebrow">Final ranking</div>
+    <h2>Average of the three method ranks</h2>
+    <p class="note">Each alternative is ranked by TOPSIS (AHP weights), VIKOR (CRITIC weights) and PROMETHEE II (Entropy weights). The final rank is the rank of the average. Rank 1 = best.</p>
+    <div class="cards" id="winners"></div>
+  </div>
+  <div class="grid">
+    <div class="panel"><h3>Ranking table</h3><div class="tbl" id="finalTbl"></div></div>
+    <div class="panel"><h3>Where each method places each alternative</h3>
+      <div class="legend"><span><i class="dot bg1"></i>TOPSIS-AHP</span><span><i class="dot bg2"></i>VIKOR-CRITIC</span><span><i class="dot bg3"></i>PROMETHEE II-Entropy</span></div>
+      <div id="rankChart" style="overflow-x:auto"></div>
+      <h3 style="margin-top:12px">Agreement between methods (rank correlation)</h3>
+      <div class="tbl" id="agreeTbl"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DATA ================= -->
+<section class="view" id="v-data" hidden>
+  <div class="panel">
+    <div class="eyebrow">Decision table · laid out like Table 9</div>
+    <h2>Alternatives and AIS properties</h2>
+    <p class="note">Click a ✓ or ✗ to change it; everything recalculates. Import a file laid out like <span class="num">Sample_Table9_Prototype_Data.xlsx</span> to load other data (e.g. the real S01–S20 studies).</p>
+    <div class="row" style="margin-bottom:12px">
+      <label class="btn" for="fileIn">Import Excel…</label><input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+      <button id="addRow">Add alternative</button><button id="resetData">Reset to sample data</button>
+      <span class="note" id="importMsg"></span>
+    </div>
+    <div class="tbl" id="dataTbl"></div>
+    <p class="note" id="dataCheck" style="margin-top:10px"></p>
+  </div>
+  <div class="panel"><h3>Criteria</h3><div class="tbl" id="critTbl"></div></div>
+</section>
+
+<!-- ================= WEIGHTS ================= -->
+<section class="view" id="v-weights" hidden>
+  <div class="panel">
+    <h2>Criterion weights from three methods</h2>
+    <p class="note">AHP comes from judgments (set below). CRITIC and Entropy are calculated from the data table.</p>
+    <div class="legend"><span><i class="dot bg1"></i>AHP</span><span><i class="dot bg2"></i>CRITIC</span><span><i class="dot bg3"></i>Entropy</span></div>
+    <div id="wChart" style="overflow-x:auto"></div>
+    <div class="tbl" id="wTbl" style="margin-top:10px"></div>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <h3>AHP judgments</h3>
+      <p class="note">Importance level of each criterion (1–9). The pairwise value is a(i,j) = 1 + (level i − level j), or its reciprocal. These are the team's assumed priorities.</p>
+      <div class="levels" id="levels"></div>
+      <div class="row" style="margin-top:10px"><button id="resetLv">Reset judgments</button><span id="crOut"></span></div>
+      <details style="margin-top:10px"><summary>Show pairwise comparison matrix</summary><div class="tbl" id="ahpMat" style="margin-top:8px"></div></details>
+    </div>
+    <div class="panel">
+      <h3>CRITIC: spread × conflict</h3><div class="tbl" id="criticTbl"></div>
+      <h3 style="margin-top:14px">Entropy: rare properties weigh more</h3><div class="tbl" id="entTbl"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RANKINGS ================= -->
+<section class="view" id="v-rankings" hidden>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
+    <div class="panel" style="border-top:4px solid var(--m1)"><div class="eyebrow">AHP weights →</div><h2 class="m1">TOPSIS</h2>
+      <p class="note">Closeness to the ideal solution, CC = D− / (D+ + D−). Higher = better.</p><div class="tbl" id="topTbl"></div></div>
+    <div class="panel" style="border-top:4px solid var(--m2)"><div class="eyebrow">CRITIC weights →</div><h2 class="m2">VIKOR</h2>
+      <p class="note">Compromise of group utility S and regret R. Lower Q = better.</p>
+      <div class="row" style="margin-bottom:8px"><label for="vIn" class="note">v (weight on S)</label><input type="range" id="vIn" min="0" max="1" step="0.05" value="0.5" style="max-width:160px"><span class="num" id="vOut">0.50</span></div>
+      <div class="tbl" id="vikTbl"></div><p class="note" id="vikCond" style="margin-top:8px"></p></div>
+    <div class="panel" style="border-top:4px solid var(--m4)"><div class="eyebrow">Entropy weights →</div><h2 class="m4">PROMETHEE I</h2>
+      <p class="note">Partial ranking: a outranks b only if it is at least as good on both Φ+ (higher) and Φ− (lower). If the two flows disagree, the pair is incomparable. Level 1 = best.</p><div class="tbl" id="pro1Tbl"></div><p class="note" id="pro1Inc" style="margin-top:8px"></p>
+      <details style="margin-top:8px"><summary>Show pairwise relations</summary><div class="tbl" id="pro1Rel" style="margin-top:8px"></div><p class="note" style="margin-top:6px">Row vs column: P = outranks, p = is outranked by, I = indifferent, R = incomparable.</p></details></div>
+    <div class="panel" style="border-top:4px solid var(--m3)"><div class="eyebrow">Entropy weights →</div><h2 class="m3">PROMETHEE II</h2>
+      <p class="note">Complete ranking: net flow Φ = Φ+ − Φ− (usual preference function). Higher = better.</p><div class="tbl" id="proTbl"></div></div>
+  </div>
+</section>
+
+<!-- ================= SENSITIVITY ================= -->
+<section class="view" id="v-sensitivity" hidden>
+  <div class="panel">
+    <div class="eyebrow">Triantaphyllou &amp; Sánchez (1997)</div>
+    <h2>How far can one weight move before the ranking changes?</h2>
+    <p class="note">δ′ = smallest change in one criterion weight, as a % of that weight, that swaps two alternatives. Negative = the weight must rise; positive = it must fall. N/F = no change can swap them. Smaller |δ′| = more sensitive.</p>
+    <div class="tbl" id="sensSum"></div>
+  </div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="row"><label for="sensM" class="note">Method</label>
+        <select id="sensM"><option value="TOPSIS">TOPSIS-AHP</option><option value="VIKOR">VIKOR-CRITIC</option><option value="PROMETHEE">PROMETHEE-Entropy</option></select></div>
+      <span class="note" id="sensStatus"></span>
+    </div>
+    <div class="tbl" id="sensCrit"></div>
+    <h3 style="margin-top:14px">δ′ for every pair (%)</h3>
+    <p class="note" id="sensHow"></p>
+    <div class="tbl heat" id="sensHeat"></div>
+  </div>
+</section>
+
+<!-- ================= METHOD ================= -->
+<section class="view" id="v-method" hidden>
+  <div class="grid">
+    <div class="panel"><h3>AHP</h3><ol class="steps"><li>Pairwise comparison matrix from the judgments</li><li>Multiply across each row, take the 7th root (geometric mean)</li><li>Divide by the total → weights</li><li>Consistency ratio CR = CI / RI must be below 0.10</li></ol></div>
+    <div class="panel"><h3>CRITIC</h3><ol class="steps"><li>Normalise each column: (x − min)/(max − min)</li><li>Standard deviation of each column (spread)</li><li>Correlation matrix; conflict = Σ(1 − ρ)</li><li>C = spread × conflict; weight = C / ΣC</li></ol></div>
+    <div class="panel"><h3>Entropy</h3><ol class="steps"><li>Shares p = x / column total</li><li>E = −(1/ln n) Σ p ln p</li><li>Divergence 1 − E</li><li>Weight = (1 − E) / Σ(1 − E)</li></ol></div>
+    <div class="panel"><h3>TOPSIS</h3><ol class="steps"><li>Vector-normalise: x / √Σx²</li><li>Multiply by the weights</li><li>Ideal best A+ and worst A−</li><li>Distances D+, D−; CC = D− / (D+ + D−)</li></ol></div>
+    <div class="panel"><h3>VIKOR</h3><ol class="steps"><li>Distance from best: (f* − x)/(f* − f−)</li><li>S = weighted sum, R = largest weighted term</li><li>Q = v·S′ + (1 − v)·R′ (rescaled)</li><li>Check advantage (DQ = 1/(n−1)) and stability</li></ol></div>
+    <div class="panel"><h3>PROMETHEE I</h3><ol class="steps"><li>Same Φ+ and Φ− as PROMETHEE II</li><li>a outranks b if Φ+(a) ≥ Φ+(b) and Φ−(a) ≤ Φ−(b), one strictly</li><li>Equal on both = indifferent; flows disagree = incomparable</li><li>Partial ranking in levels (no one outranks level 1)</li></ol></div>
+    <div class="panel"><h3>PROMETHEE II</h3><ol class="steps"><li>Usual preference: P = 1 if a beats b on a criterion</li><li>π(a,b) = Σ w·P</li><li>Φ+ = row sum/(n−1), Φ− = column sum/(n−1)</li><li>Net flow Φ = Φ+ − Φ−</li></ol></div>
+  </div>
+  <div class="panel"><h3>Notes</h3>
+    <p>All calculations run in this page and use the same formulas as the Excel workbook and the Python scripts; the three give identical results on the sample data.</p>
+    <p>Sensitivity: PROMETHEE II net flow is a weighted sum, so the closed-form formula δ = (Pⱼ − Pᵢ)/(aⱼₖ − aᵢₖ) is used, with δ < wₖ required for feasibility. TOPSIS and VIKOR are not weighted sums, so δ is found by moving the weight step by step until the pair swaps.</p>
+    <p class="note">Case study: Aldhaheri et al. (2020), Journal of Network and Computer Applications, 157, 102537. Sensitivity method: Triantaphyllou &amp; Sánchez (1997), Decision Sciences, 28(1), 151–194.</p>
+  </div>
+</section>
+</main>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+// ===== MCDM calculation engine (same formulas as the Python prototype) =====
+const CRIT = ["AD","SL","RES","DEF","ST","LH","DS"];
+const CRIT_NAMES = ["Adaptive","Self-learning","Resiliency","Response/defense","Self-tolerance","Lightweight","Distributed"];
+const RI = {1:0,2:0,3:0.58,4:0.90,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49};
+const sum = a => a.reduce((s,x)=>s+x,0);
+const col = (X,k) => X.map(r=>r[k]);
+const rankOf = (vals, higherBetter) => vals.map(v => 1 + vals.filter(u => higherBetter ? u > v + 1e-12 : u < v - 1e-12).length);
+
+function ahp(levels){
+  const m = CRIT.length, A = [];
+  for(let i=0;i<m;i++){ A.push([]); for(let j=0;j<m;j++){ const d = levels[i]-levels[j]; A[i].push(d>=0 ? 1+d : 1/(1-d)); } }
+  const prod = A.map(r => r.reduce((p,x)=>p*x,1));
+  const gm = prod.map(p => Math.pow(p,1/m));
+  const w = gm.map(g => g/sum(gm));
+  const Aw = A.map(r => sum(r.map((x,j)=>x*w[j])));
+  const lam = Aw.map((x,i)=>x/w[i]);
+  const lamMax = sum(lam)/m, CI = (lamMax-m)/(m-1), CR = CI/RI[m];
+  return {A, prod, gm, w, lam, lamMax, CI, CR};
+}
+function std(a){ const n=a.length, mu=sum(a)/n; return Math.sqrt(sum(a.map(x=>(x-mu)**2))/(n-1)); }
+function corr(a,b){ const n=a.length, ma=sum(a)/n, mb=sum(b)/n; let sab=0,saa=0,sbb=0;
+  for(let i=0;i<n;i++){ sab+=(a[i]-ma)*(b[i]-mb); saa+=(a[i]-ma)**2; sbb+=(b[i]-mb)**2; }
+  return (saa===0||sbb===0) ? 0 : sab/Math.sqrt(saa*sbb); }
+function critic(X){
+  const m = CRIT.length;
+  const R = X.map(r => r.map((x,k)=>{ const c=col(X,k), mx=Math.max(...c), mn=Math.min(...c); return mx===mn?0:(x-mn)/(mx-mn); }));
+  const sd = CRIT.map((_,k)=>std(col(R,k)));
+  const rho = CRIT.map((_,j)=>CRIT.map((_,k)=>corr(col(R,j),col(R,k))));
+  const conflict = rho.map(r=>sum(r.map(x=>1-x)));
+  const C = sd.map((s,k)=>s*conflict[k]);
+  const w = C.map(c=>c/sum(C));
+  return {R, sd, rho, conflict, C, w};
+}
+function entropy(X){
+  const n = X.length, k = 1/Math.log(n);
+  const tot = CRIT.map((_,j)=>sum(col(X,j)));
+  const P = X.map(r=>r.map((x,j)=>tot[j]===0?0:x/tot[j]));
+  const E = CRIT.map((_,j)=>-k*sum(col(P,j).map(p=>p>0?p*Math.log(p):0)));
+  const div = E.map(e=>1-e);
+  const w = div.map(d=>d/sum(div));
+  return {P, E, div, w, k};
+}
+function topsis(X,w){
+  const m=CRIT.length;
+  const norm = CRIT.map((_,k)=>Math.sqrt(sum(col(X,k).map(x=>x*x))));
+  const V = X.map(r=>r.map((x,k)=>norm[k]===0?0:w[k]*x/norm[k]));
+  const best = CRIT.map((_,k)=>Math.max(...col(V,k))), worst = CRIT.map((_,k)=>Math.min(...col(V,k)));
+  const dp = V.map(r=>Math.sqrt(sum(r.map((v,k)=>(v-best[k])**2))));
+  const dm = V.map(r=>Math.sqrt(sum(r.map((v,k)=>(v-worst[k])**2))));
+  const cc = dp.map((d,i)=> (d+dm[i])===0?0:dm[i]/(d+dm[i]));
+  return {norm, V, best, worst, dp, dm, score:cc, rank:rankOf(cc,true)};
+}
+function vikor(X,w,v=0.5){
+  const fb = CRIT.map((_,k)=>Math.max(...col(X,k))), fw = CRIT.map((_,k)=>Math.min(...col(X,k)));
+  const wd = X.map(r=>r.map((x,k)=> fb[k]===fw[k]?0:w[k]*(fb[k]-x)/(fb[k]-fw[k])));
+  const S = wd.map(sum), R = wd.map(r=>Math.max(...r));
+  const sMin=Math.min(...S), sMax=Math.max(...S), rMin=Math.min(...R), rMax=Math.max(...R);
+  const Q = S.map((s,i)=> v*(sMax>sMin?(s-sMin)/(sMax-sMin):0) + (1-v)*(rMax>rMin?(R[i]-rMin)/(rMax-rMin):0));
+  const rq = rankOf(Q,false), rs = rankOf(S,false), rr = rankOf(R,false);
+  const order = Q.map((q,i)=>i).sort((a,b)=>Q[a]-Q[b]);
+  const DQ = 1/(X.length-1), best = order[0];
+  const c1 = Q[order[1]] - Q[order[0]] >= DQ - 1e-12, c2 = rs[best]===1 || rr[best]===1;
+  return {wd, S, R, score:Q, rank:rq, rankS:rs, rankR:rr, DQ, c1, c2, best, compromise: c1&&c2 ? [best] : Q.map((q,i)=>i).filter(i=>Q[i]-Q[best] < DQ)};
+}
+function uniFlows(X){ const n=X.length;
+  return X.map((r,i)=>r.map((x,k)=>(X.filter(o=>o[k]<x).length - X.filter(o=>o[k]>x).length)/(n-1))); }
+function promethee(X,w){
+  const n=X.length;
+  const pi = X.map((a,i)=>X.map((b,j)=> i===j?0:sum(CRIT.map((_,k)=> a[k]>b[k]?w[k]:0))));
+  const plus = pi.map(r=>sum(r)/(n-1)), minus = X.map((_,j)=>sum(pi.map(r=>r[j]))/(n-1));
+  const net = plus.map((p,i)=>p-minus[i]);
+  return {pi, plus, minus, score:net, rank:rankOf(net,true), a: uniFlows(X)};
+}
+function promethee1(plus, minus, names){
+  // PROMETHEE I: compare leaving (Phi+) and entering (Phi-) flows separately -> partial ranking
+  const n=plus.length, eps=1e-12, rel=[];
+  for(let a=0;a<n;a++){ rel.push([]); for(let b=0;b<n;b++){
+    if(a===b){ rel[a].push("-"); continue; }
+    const pe=Math.abs(plus[a]-plus[b])<=eps, me=Math.abs(minus[a]-minus[b])<=eps;
+    if(pe&&me) rel[a].push("I");
+    else if(plus[a]>=plus[b]-eps && minus[a]<=minus[b]+eps) rel[a].push("P");
+    else if(plus[a]<=plus[b]+eps && minus[a]>=minus[b]-eps) rel[a].push("p");
+    else rel[a].push("R"); } }
+  const level=Array(n).fill(0); let rem=[...Array(n).keys()], L=1;
+  while(rem.length){ const top=rem.filter(a=>!rem.some(b=>b!==a && rel[b][a]==="P")); top.forEach(a=>level[a]=L); rem=rem.filter(a=>!top.includes(a)); L++; }
+  const cnt=(a,ch)=>rel[a].filter(x=>x===ch).length;
+  const incomp=[]; for(let a=0;a<n;a++) for(let b=a+1;b<n;b++) if(rel[a][b]==="R") incomp.push([a,b]);
+  return {rel, level, outranks:plus.map((_,a)=>cnt(a,"P")), outrankedBy:plus.map((_,a)=>cnt(a,"p")), incomparable:plus.map((_,a)=>cnt(a,"R")), incomp};
+}
+function spearman(r1,r2){ return corr(r1,r2); }
+
+// ----- Sensitivity (Triantaphyllou & Sánchez, 1997) -----
+function deltaSearch(scoreFn, X, w, i, j, k, higherBetter, upper=10, steps=600){
+  const w0=w[k];
+  const gap = t => { const ww=w.slice(); ww[k]=t; const s=scoreFn(X,ww); return higherBetter ? s[i]-s[j] : s[j]-s[i]; };
+  let best=null;
+  for(const end of [0, upper]){
+    const span=Math.abs(end-w0), sg=Math.sign(end-w0); if(span===0) continue;
+    const ts=[w0]; const l0=Math.log(1e-7), l1=Math.log(span);
+    for(let s=0;s<steps;s++) ts.push(w0+sg*Math.exp(l0+(l1-l0)*s/(steps-1)));
+    let pt=ts[0], pg=gap(pt);
+    for(let q=1;q<ts.length;q++){ const t=ts[q], g=gap(t);
+      if(pg>0 && g< -1e-12){ let lo=pt, hi=t; for(let b=0;b<60;b++){ const mid=(lo+hi)/2; if(gap(mid)>0) lo=mid; else hi=mid; }
+        const d=w0-(lo+hi)/2; if(best===null||Math.abs(d)<Math.abs(best)) best=d; break; }
+      pt=t; pg=g; }
+  }
+  return best;
+}
+const topsisScore = (X,w)=>topsis(X,w).score, vikorScoreFn = v => (X,w)=>vikor(X,w,v).score;
+function sensitivity(X, names, w, method, v=0.5){
+  // group identical rows
+  const groups = {}; X.forEach((r,i)=>{ const key=r.join(""); (groups[key]=groups[key]||[]).push(i); });
+  const reps = Object.values(groups).map(g=>g[0]);
+  const label = {}; Object.values(groups).forEach(g=>label[g[0]]=g.map(i=>names[i]).join("/"));
+  let scores, higher, closed=null, fn=null;
+  if(method==="TOPSIS"){ scores=topsis(X,w).score; higher=true; fn=topsisScore; }
+  else if(method==="VIKOR"){ scores=vikor(X,w,v).score; higher=false; fn=vikorScoreFn(v); }
+  else { const p=promethee(X,w); scores=p.score; higher=true; closed=p.a; }
+  const order = reps.slice().sort((a,b)=> higher ? scores[b]-scores[a] : scores[a]-scores[b]);
+  const pairs=[]; for(let a=0;a<order.length;a++) for(let b=a+1;b<order.length;b++) pairs.push([order[a],order[b]]);
+  const rows = pairs.map(([i,j])=>{
+    const cells = CRIT.map((_,k)=>{
+      if(Math.abs(scores[i]-scores[j])<1e-12) return null;
+      let d;
+      if(closed){ const den=closed[j][k]-closed[i][k]; d = den===0 ? null : (scores[j]-scores[i])/den; if(d!==null && d>=w[k]-1e-9) d=null; /* feasibility: delta must be below w_k */ }
+      else d = deltaSearch(fn,X,w,i,j,k,higher);
+      if(d===null || Math.abs(d)<1e-12) return null;
+      return {delta:d, pct:d*100/w[k]};
+    });
+    return {pair: label[i]+" – "+label[j], i, j, top: i===order[0], cells};
+  });
+  const crit = CRIT.map((_,k)=>{
+    const all = rows.map(r=>r.cells[k]).filter(Boolean).map(c=>({a:Math.abs(c.pct)}));
+    const withPair = rows.filter(r=>r.cells[k]);
+    const pa = withPair.length ? withPair.reduce((m,r)=>Math.abs(r.cells[k].pct)<Math.abs(m.cells[k].pct)?r:m) : null;
+    const tops = rows.filter(r=>r.top && r.cells[k]);
+    const pt = tops.length ? Math.min(...tops.map(r=>Math.abs(r.cells[k].pct))) : null;
+    return {feasible: all.length, PT: pt, PA: pa?Math.abs(pa.cells[k].pct):null, paPair: pa?pa.pair:null, paSigned: pa?pa.cells[k].pct:null};
+  });
+  const ptK = crit.reduce((b,c,k)=> c.PT!==null && (b===null || c.PT<crit[b].PT) ? k : b, null);
+  const paK = crit.reduce((b,c,k)=> c.PA!==null && (b===null || c.PA<crit[b].PA) ? k : b, null);
+  return {top: label[order[0]], order: order.map(i=>label[i]), rows, crit, ptK, paK};
+}
+
+
+// ===== App state =====
+const SAMPLE = [
+  {id:"A",alg:"Negative Selection",v:[1,1,0,1,0,1,1]},
+  {id:"B",alg:"Dendritic Cell Algorithm",v:[0,1,1,0,1,1,1]},
+  {id:"C",alg:"Negative Selection",v:[1,0,0,0,0,1,1]},
+  {id:"D",alg:"Clonal Selection + Immune Network",v:[1,1,1,1,1,0,1]},
+  {id:"E",alg:"Positive Selection",v:[0,0,0,1,1,1,0]},
+  {id:"F",alg:"Clonal Selection",v:[1,1,0,0,1,0,0]},
+  {id:"G",alg:"Immune Cells",v:[0,1,0,1,0,1,1]},
+  {id:"H",alg:"Dendritic Cell Algorithm + Danger Theory",v:[1,0,1,0,0,0,1]}];
+const DEF_LV = [3,2,3,4,3,5,4];
+const S = { data: SAMPLE.map(r=>({...r,v:r.v.slice()})), levels: DEF_LV.slice(), v: 0.5, sample: true, ver: 0 };
+let R = null, sensCache = {ver:-1, res:{}}, sensJob = 0;
+const $ = id => document.getElementById(id);
+const f = (x,d=4) => (x===null||x===undefined||isNaN(x)) ? "–" : Number(x).toFixed(d);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function compute(){
+  const X = S.data.map(r=>r.v), names = S.data.map(r=>r.id);
+  const a = ahp(S.levels), c = critic(X), e = entropy(X);
+  const t = topsis(X,a.w), vk = vikor(X,c.w,S.v), p = promethee(X,e.w), p1 = promethee1(p.plus,p.minus);
+  const avg = names.map((_,i)=>(t.rank[i]+vk.rank[i]+p.rank[i])/3);
+  const fin = avg.map(v=>1+avg.filter(u=>u<v-1e-12).length);
+  R = {X, names, a, c, e, t, vk, p, p1, avg, fin};
+}
+function valid(){
+  const X=S.data.map(r=>r.v), probs=[];
+  if (X.length < 3) probs.push("At least 3 alternatives are needed.");
+  CRIT.forEach((c,k)=>{ const s=X.reduce((t,r)=>t+r[k],0); if(s===0||s===X.length) probs.push(`${c} has the same value for every alternative, so CRITIC and Entropy cannot use it.`); });
+  return probs;
+}
+
+// ===== Rendering =====
+function table(head, rows, opts={}){
+  const L=opts.left||1; const th = head.map((h,i)=>`<th class="${i<L?'l':''}">${h}</th>`).join("");
+  const tr = rows.map(r=>`<tr class="${r.cls||''}">${r.cells.map((c,i)=>`<td class="${i<L?'l':''} ${typeof c==='number'?'num':''}">${typeof c==='number'?c:c}</td>`).join("")}</tr>`).join("");
+  return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+function renderOverview(){
+  const {names,t,vk,p,p1,avg,fin}=R;
+  const byRank = rank => names.map((_,i)=>i).sort((a,b)=>rank[a]-rank[b]);
+  const second = (rank, val, d, dig) => { const o=byRank(rank), j=o.find(i=>rank[i]>rank[o[0]]); return j===undefined ? '' : `<div class="lab" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><b>2nd: ${esc(names[j])}</b> · ${esc(S.data[j].alg)}<br><span class="num">${d}: ${f(val[j],dig)}</span></div>`; };
+  const win = (rank,score,lab,col,d,dig=4)=>{ const o=byRank(rank), i=o[0], tied=o.filter(k=>rank[k]===1); return `<div class="card" style="--c:var(${col})"><div class="eyebrow">${lab} · 1st</div><div class="big">${tied.map(k=>esc(names[k])).join(" / ")}</div><div class="lab">${esc(S.data[i].alg)}</div><div class="lab num">${d}: ${f(score[i],dig)}</div>${second(rank,score,d,dig)}</div>`; };
+  const fi = fin.indexOf(1);
+  $("winners").innerHTML = `<div class="card" style="--c:var(--accent)"><div class="eyebrow">Final ranking · 1st</div><div class="big">${fin.map((r,i)=>r===1?esc(names[i]):null).filter(Boolean).join(" / ")}</div><div class="lab">${esc(S.data[fi].alg)}</div><div class="lab num">average rank ${f(avg[fi],2)}</div>${second(fin,avg,'average rank',2)}</div>`
+    + win(t.rank,t.score,"TOPSIS-AHP","--m1","CC") + win(vk.rank,vk.score,"VIKOR-CRITIC","--m2","Q") + win(R.p1.level,R.p1.level,"PROMETHEE I-Entropy","--m4","level",0) + win(p.rank,p.score,"PROMETHEE II-Entropy","--m3","Φ net");
+  const order = names.map((_,i)=>i).sort((a,b)=>avg[a]-avg[b]);
+  $("finalTbl").innerHTML = table(["Alt.","AIS algorithm","Score /7","TOPSIS","VIKOR","PROM. I level","PROM. II","Average*","Final"],
+    order.map(i=>({cls: fin[i]===1?'rank1':'', cells:[`<b>${esc(names[i])}</b>`,esc(S.data[i].alg),S.data[i].v.reduce((a,b)=>a+b,0),t.rank[i],vk.rank[i],p1.level[i],p.rank[i],f(avg[i],2),`<b>${fin[i]}</b>`]})), {left:2}) + `<p class="note" style="padding:8px 10px;margin:0">*Average of the three complete rankings (TOPSIS, VIKOR, PROMETHEE II). PROMETHEE I is a partial ranking, so its levels are shown but not averaged.</p>`;
+  // rank dot chart
+  const n=names.length, rowH=30, W=420, padL=46, padR=20, top=26, H=top+n*rowH+10, x=r=>padL+(W-padL-padR)*(r-1)/Math.max(1,n-1);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:320px;max-width:${W*1.4}px" role="img" aria-label="Rank of each alternative under each method">`;
+  for(let r=1;r<=n;r++) s+=`<line x1="${x(r)}" x2="${x(r)}" y1="${top-6}" y2="${H-6}" stroke="var(--line)"/><text x="${x(r)}" y="${top-12}" text-anchor="middle">${r}</text>`;
+  order.forEach((i,row)=>{ const y=top+row*rowH+rowH/2; const rs=[t.rank[i],vk.rank[i],p.rank[i]];
+    s+=`<text class="lbl" x="${padL-14}" y="${y+4}" text-anchor="end">${esc(names[i])}</text>`;
+    s+=`<line x1="${x(Math.min(...rs))}" x2="${x(Math.max(...rs))}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="2" opacity=".35"/>`;
+    [["--m1",-5],["--m2",0],["--m3",5]].forEach(([c,off],m)=> s+=`<circle cx="${x(rs[m])}" cy="${y+off}" r="5.5" fill="var(${c})"><title>${["TOPSIS","VIKOR","PROMETHEE"][m]}: rank ${rs[m]}</title></circle>`); });
+  s+=`<text x="${(padL+W-padR)/2}" y="${H}" text-anchor="middle">rank (1 = best)</text></svg>`;
+  $("rankChart").innerHTML=s;
+  const rk={TOPSIS:t.rank,VIKOR:vk.rank,PROMETHEE:p.rank}, ks=Object.keys(rk);
+  $("agreeTbl").innerHTML = table(["",...ks], ks.map(a=>({cells:[`<b>${a}</b>`,...ks.map(b=>f(spearman(rk[a],rk[b]),2))]})));
+}
+function renderData(){
+  const head = ["Alt.","AIS algorithm",...CRIT.map(c=>c),"Score",""];
+  const rows = S.data.map((r,i)=>`<tr><td class="l"><input id="id-${i}" value="${esc(r.id)}" aria-label="Name of alternative ${i+1}" style="width:5.5em;font:600 13px var(--f-body);border:1px solid var(--line);border-radius:5px;padding:3px 6px;background:var(--surface);color:var(--ink)"></td><td class="l">${esc(r.alg)}</td>`
+    + r.v.map((x,k)=>`<td class="tog ${x?'y':'n'}" tabindex="0" role="button" aria-label="${esc(r.id)} ${CRIT_NAMES[k]}: ${x?'present':'absent'}" data-i="${i}" data-k="${k}">${x?'✓':'✗'}</td>`).join("")
+    + `<td class="num">${r.v.reduce((a,b)=>a+b,0)}</td><td><button data-del="${i}" aria-label="Remove ${esc(r.id)}" title="Remove">✕</button></td></tr>`).join("");
+  const tot = `<tr><td class="l"><b>Total</b></td><td></td>${CRIT.map((_,k)=>`<td class="num"><b>${S.data.reduce((s,r)=>s+r.v[k],0)}</b></td>`).join("")}<td></td><td></td></tr>`;
+  $("dataTbl").innerHTML = `<table><thead><tr>${head.map((h,i)=>`<th class="${i<2?'l':''}">${h}</th>`).join("")}</tr></thead><tbody>${rows}${tot}</tbody></table>`;
+  const pr = valid(); $("dataCheck").innerHTML = pr.length ? `<span class="bad">Check the data:</span> ${pr.map(esc).join(" ")}` : `<span class="ok">Ready:</span> every criterion varies, so all six methods can run.`;
+  $("critTbl").innerHTML = table(["Code","Criterion","Meaning"], CRIT.map((c,k)=>({cells:[`<b>${c}</b>`,CRIT_NAMES[k],["Learns and changes behaviour as attacks change","Updates its own detectors without new rules","Recovers to a secure state after an attack","Acts against an attack, not only detects it","Avoids reacting to normal traffic","Runs at low cost on constrained devices","Spreads processing across nodes"][k]]})), {left:3});
+}
+function barChart(sets){
+  const W=640,H=230,pl=40,pb=34,pt=10, cw=(W-pl-10)/CRIT.length, bw=cw/4.2;
+  const mx=Math.max(...sets.flatMap(s=>s.w)), ymax=Math.ceil(mx*10)/10, y=v=>pt+(H-pt-pb)*(1-v/ymax);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:520px" role="img" aria-label="Weights by criterion and method">`;
+  for(let g=0; g<=ymax+1e-9; g+=0.1){ s+=`<line x1="${pl}" x2="${W-10}" y1="${y(g)}" y2="${y(g)}" stroke="var(--line)"/><text x="${pl-6}" y="${y(g)+4}" text-anchor="end">${g.toFixed(1)}</text>`; }
+  CRIT.forEach((c,k)=>{ const x0=pl+k*cw+cw/2-1.5*bw;
+    sets.forEach((st,m)=>{ const v=st.w[k]; s+=`<rect x="${x0+m*bw}" y="${y(v)}" width="${bw-2}" height="${y(0)-y(v)}" fill="var(${st.c})" rx="2"><title>${st.n} ${c}: ${v.toFixed(3)}</title></rect>`; });
+    s+=`<text class="lbl" x="${pl+k*cw+cw/2}" y="${H-12}" text-anchor="middle">${c}</text>`; });
+  return s+`</svg>`;
+}
+function renderWeights(){
+  const {a,c,e}=R; const sets=[{n:"AHP",w:a.w,c:"--m1"},{n:"CRITIC",w:c.w,c:"--m2"},{n:"Entropy",w:e.w,c:"--m3"}];
+  $("wChart").innerHTML = barChart(sets);
+  $("wTbl").innerHTML = table(["Method",...CRIT,"Sum"], sets.map(st=>({cells:[`<b class="${st.c.slice(2)}">${st.n}</b>`,...st.w.map(x=>f(x,3)),f(st.w.reduce((p,q)=>p+q,0),3)]})));
+  if(!$("levels").dataset.built){
+    $("levels").innerHTML = CRIT.map((cd,k)=>`<div class="lv"><label for="lv-${k}">${cd} · ${CRIT_NAMES[k]}</label><input type="range" id="lv-${k}" min="1" max="9" step="1" value="${S.levels[k]}"><span class="val" id="lvv-${k}">${S.levels[k]}</span></div>`).join("");
+    $("levels").dataset.built="1";
+    CRIT.forEach((_,k)=>$("lv-"+k).addEventListener("input",ev=>{ S.levels[k]=+ev.target.value; $("lvv-"+k).textContent=ev.target.value; update(); }));
+  }
+  $("crOut").innerHTML = `CR = <span class="num">${f(a.CR,4)}</span> ${a.CR<0.1?'<span class="ok">consistent</span>':'<span class="bad">not consistent (needs &lt; 0.10)</span>'}`;
+  $("ahpMat").innerHTML = table(["",...CRIT,"Geo. mean","Weight"], CRIT.map((cd,i)=>({cells:[`<b>${cd}</b>`,...a.A[i].map(x=>x>=1?f(x,0):"1/"+f(1/x,0)),f(a.gm[i],3),`<b>${f(a.w[i],3)}</b>`]})));
+  $("criticTbl").innerHTML = table(["","σ (spread)","Σ(1−ρ) conflict","C","Weight"], CRIT.map((cd,k)=>({cells:[`<b>${cd}</b>`,f(c.sd[k],3),f(c.conflict[k],3),f(c.C[k],3),`<b>${f(c.w[k],3)}</b>`]})));
+  $("entTbl").innerHTML = table(["","Count of ✓","Entropy E","1 − E","Weight"], CRIT.map((cd,k)=>({cells:[`<b>${cd}</b>`,R.X.reduce((s,r)=>s+r[k],0),f(e.E[k],3),f(e.div[k],3),`<b>${f(e.w[k],3)}</b>`]})));
+}
+function renderRankings(){
+  const {names,t,vk,p}=R, ord=(rank)=>names.map((_,i)=>i).sort((a,b)=>rank[a]-rank[b]);
+  $("topTbl").innerHTML = table(["Rank","Alt.","D+","D−","CC"], ord(t.rank).map(i=>({cls:t.rank[i]===1?'rank1':'',cells:[`<b>${t.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(t.dp[i]),f(t.dm[i]),`<b>${f(t.score[i])}</b>`]})));
+  $("vikTbl").innerHTML = table(["Rank","Alt.","S","R","Q"], ord(vk.rank).map(i=>({cls:vk.rank[i]===1?'rank1':'',cells:[`<b>${vk.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(vk.S[i]),f(vk.R[i]),`<b>${f(vk.score[i])}</b>`]})));
+  $("vikCond").innerHTML = `C1 acceptable advantage: ${vk.c1?'<span class="ok">met</span>':'<span class="bad">not met</span>'} · C2 acceptable stability: ${vk.c2?'<span class="ok">met</span>':'<span class="bad">not met</span>'} → ${vk.c1&&vk.c2?`<b>${esc(names[vk.best])}</b> is the compromise solution`:`compromise set: <b>${vk.compromise.map(i=>esc(names[i])).join(", ")}</b>`}`;
+  const p1=R.p1, ordL=names.map((_,i)=>i).sort((a,b)=>p1.level[a]-p1.level[b]||p.plus[b]-p.plus[a]);
+  $("pro1Tbl").innerHTML = table(["Level","Alt.","Φ+","Φ−","Outranks","Outranked by","Incomparable"], ordL.map(i=>({cls:p1.level[i]===1?'rank1':'',cells:[`<b>${p1.level[i]}</b>`,`<b>${esc(names[i])}</b>`,f(p.plus[i]),f(p.minus[i]),p1.outranks[i],p1.outrankedBy[i],p1.incomparable[i]]})));
+  $("pro1Inc").innerHTML = p1.incomp.length ? `Incomparable pairs: <b>${p1.incomp.map(([a,b])=>esc(names[a])+"–"+esc(names[b])).join(", ")}</b>` : "No incomparable pairs: PROMETHEE I gives a complete order here.";
+  $("pro1Rel").innerHTML = table(["",...names.map(esc)], names.map((n,a)=>({cells:[`<b>${esc(n)}</b>`,...p1.rel[a].map(x=>x==="R"?`<b class="m2">R</b>`:x==="P"?`<span class="ok">P</span>`:x)]})));
+  $("proTbl").innerHTML = table(["Rank","Alt.","Φ+","Φ−","Φ net"], ord(p.rank).map(i=>({cls:p.rank[i]===1?'rank1':'',cells:[`<b>${p.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(p.plus[i]),f(p.minus[i]),`<b>${f(p.score[i])}</b>`]})));
+}
+// ----- Sensitivity (computed in the background, one method at a time) -----
+function runSensitivity(){
+  if (sensCache.ver === S.ver) { renderSensitivity(); return; }
+  const job = ++sensJob, ver = S.ver, X=R.X, names=R.names, res={};
+  const tasks=[["TOPSIS",R.a.w],["VIKOR",R.c.w],["PROMETHEE",R.e.w]];
+  $("sensStatus").innerHTML = `<span class="spin"></span> calculating…`;
+  const step = q => { if (job!==sensJob) return; if (q===tasks.length){ sensCache={ver,res}; renderSensitivity(); return; }
+    const [m,w]=tasks[q]; res[m]=sensitivity(X,names,w,m,S.v); setTimeout(()=>step(q+1),0); };
+  setTimeout(()=>step(0),30);
+}
+function heatColor(p){ if(p===null) return ""; const a=Math.abs(p); const t=Math.max(0,Math.min(1,1-Math.log10(Math.max(a,0.1))/Math.log10(300))); return `background:color-mix(in srgb,var(--hot) ${Math.round(t*55)}%,transparent)`; }
+function renderSensitivity(){
+  if (sensCache.ver !== S.ver) { runSensitivity(); return; }
+  const res=sensCache.res, lab={TOPSIS:"TOPSIS-AHP",VIKOR:"VIKOR-CRITIC",PROMETHEE:"PROMETHEE-Entropy"}, col={TOPSIS:"m1",VIKOR:"m2",PROMETHEE:"m3"};
+  $("sensStatus").textContent = "Up to date";
+  $("sensSum").innerHTML = table(["Method","Top alternative","Most critical for 1st place (PT)","Most critical for any pair (PA)","Pair at PA"],
+    Object.keys(res).map(m=>{ const r=res[m], pt=r.ptK, pa=r.paK; return {cells:[`<b class="${col[m]}">${lab[m]}</b>`,`<b>${esc(r.top)}</b>`,
+      pt===null?"none":`${CRIT[pt]} · <span class="num">${f(r.crit[pt].PT,1)}%</span>`, pa===null?"none":`${CRIT[pa]} · <span class="num">${f(r.crit[pa].PA,1)}%</span>`, pa===null?"–":esc(r.crit[pa].paPair)]}; }));
+  const m=$("sensM").value, r=res[m];
+  $("sensCrit").innerHTML = table(["Measure",...CRIT], [
+    {cells:["<b>Feasible swaps</b>",...r.crit.map(c=>c.feasible)]},
+    {cells:["<b>PT: min |δ′| with top (%)</b>",...r.crit.map((c,k)=>c.PT===null?'–':`<span style="${heatColor(c.PT)};padding:2px 6px;border-radius:4px">${f(c.PT,1)}</span>`)]},
+    {cells:["<b>PA: min |δ′| any pair (%)</b>",...r.crit.map((c,k)=>c.PA===null?'–':`<span style="${heatColor(c.PA)};padding:2px 6px;border-radius:4px">${f(c.PA,1)}</span>`)]}]);
+  $("sensHow").textContent = m==="PROMETHEE" ? "Closed-form formula from the PDF: δ = (Pj − Pi)/(ajk − aik), feasible only if δ < wk." : "Found by moving one weight step by step (others fixed) until the pair swaps.";
+  $("sensHeat").innerHTML = `<table><thead><tr><th class="l">Pair (better – worse)</th>${CRIT.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>`+
+    r.rows.map(row=>`<tr><td class="l">${row.top?'<b>':''}${esc(row.pair)}${row.top?'</b>':''}</td>${row.cells.map(c=>c?`<td style="${heatColor(c.pct)}">${f(c.pct,1)}</td>`:`<td class="nf">N/F</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+}
+// ===== Routing and updates =====
+const VIEWS=["overview","data","weights","rankings","sensitivity","method"];
+function current(){ const h=location.hash.slice(1); return VIEWS.includes(h)?h:"overview"; }
+function render(){
+  const v=current();
+  VIEWS.forEach(x=>{ $("v-"+x).hidden = x!==v; });
+  document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current", a.getAttribute("href")==="#"+v?"page":"false"));
+  $("dataBadge").hidden = !S.sample; $("sizeBadge").textContent = `${S.data.length} alternatives × 7 criteria`;
+  if (valid().length && v!=="data" && v!=="method"){ $("v-"+v).hidden=true; $("v-data").hidden=false; renderData(); return; }
+  ({overview:renderOverview,data:renderData,weights:renderWeights,rankings:renderRankings,sensitivity:renderSensitivity,method:()=>{}})[v]();
+}
+function update(){ S.ver++; if(!valid().length) compute(); render(); }
+window.addEventListener("hashchange", render);
+
+$("dataTbl").addEventListener("click", ev=>{
+  const td=ev.target.closest("td.tog"); if(td){ const i=+td.dataset.i,k=+td.dataset.k; S.data[i].v[k]=1-S.data[i].v[k]; update(); return; }
+  const del=ev.target.closest("button[data-del]"); if(del && S.data.length>3){ S.data.splice(+del.dataset.del,1); update(); }
+});
+$("dataTbl").addEventListener("keydown", ev=>{ if((ev.key==="Enter"||ev.key===" ") && ev.target.matches("td.tog")){ ev.preventDefault(); ev.target.click(); }});
+$("dataTbl").addEventListener("change", ev=>{ const m=ev.target.id.match(/^id-(\d+)$/); if(m){ S.data[+m[1]].id = ev.target.value.trim()||("Alt"+(+m[1]+1)); update(); }});
+$("addRow").addEventListener("click", ()=>{ S.data.push({id:"New"+(S.data.length+1),alg:"(new alternative)",v:[0,0,0,0,0,0,0]}); S.sample=false; update(); });
+$("resetData").addEventListener("click", ()=>{ S.data=SAMPLE.map(r=>({...r,v:r.v.slice()})); S.sample=true; $("importMsg").textContent=""; update(); });
+$("resetLv").addEventListener("click", ()=>{ S.levels=DEF_LV.slice(); CRIT.forEach((_,k)=>{ $("lv-"+k).value=S.levels[k]; $("lvv-"+k).textContent=S.levels[k]; }); update(); });
+$("vIn").addEventListener("input", ev=>{ S.v=+ev.target.value; $("vOut").textContent=S.v.toFixed(2); update(); });
+$("sensM").addEventListener("change", renderSensitivity);
+function parseWorkbook(buf, fileName){
+  if(typeof XLSX==="undefined") throw new Error("the Excel reader did not load");
+  const wb=XLSX.read(buf,{type:"array"});
+  const name = wb.SheetNames.find(n=>/tick/i.test(n)) || wb.SheetNames.find(n=>/0-1/.test(n)) || wb.SheetNames[0];
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:""});
+  const h=rows.findIndex(r=>CRIT.every(c=>r.map(x=>String(x).trim()).includes(c)));
+  if(h<0) throw new Error("no header row with AD SL RES DEF ST LH DS was found");
+  const hdr=rows[h].map(x=>String(x).trim()), idx=CRIT.map(c=>hdr.indexOf(c)), algI=hdr.findIndex(x=>/algorithm/i.test(x));
+  const conv=x=>{ const s=String(x).trim(); if(s==="✓"||s==="1"||s.toLowerCase()==="yes") return 1; if(["✗","0","x","X","–","-","no"].includes(s)) return 0; return null; };
+  const data=[]; for(let r=h+1;r<rows.length;r++){ const row=rows[r], id=String(row[0]).trim(); if(!id) continue; const v=idx.map(i=>conv(row[i])); if(v.some(x=>x===null)) continue; data.push({id,alg:algI>=0?String(row[algI]):"",v}); }
+  if(data.length<3) throw new Error("fewer than 3 complete rows were found");
+  return {data, sheet:name};
+}
+$("fileIn").addEventListener("change", async ev=>{
+  const file=ev.target.files[0]; if(!file) return;
+  try{ const {data,sheet}=parseWorkbook(await file.arrayBuffer(), file.name);
+    S.data=data; S.sample=/sample/i.test(file.name); $("importMsg").innerHTML=`<span class="ok">Imported ${data.length} alternatives</span> from ${esc(file.name)} [${esc(sheet)}]`; update();
+  }catch(err){ $("importMsg").innerHTML=`<span class="bad">Could not import:</span> ${esc(err.message)}. Use a sheet laid out like Table 9 (headers AD … DS, ✓/✗ values).`; }
+  ev.target.value="";
+});
+// Local version: load the data file that sits in the same folder (the same file the Python scripts use)
+const DATA_FILE = "Sample_Table9_Prototype_Data.xlsx";
+compute(); render();
+fetch(DATA_FILE).then(r=>{ if(!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(buf=>{
+  const {data,sheet}=parseWorkbook(buf, DATA_FILE);
+  S.data=data; S.sample=/sample/i.test(DATA_FILE);
+  $("importMsg").innerHTML=`<span class="ok">Loaded ${data.length} alternatives</span> from ${DATA_FILE} [${esc(sheet)}]`; update();
+}).catch(()=>{ $("importMsg").textContent="Using the built-in sample data. Start the page with run_frontend.py to load the Excel file in this folder."; });
+</script>
+
+</body>
+</html>
