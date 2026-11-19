@@ -1,0 +1,48 @@
+You are an expert in IoT security and Artificial Immune Systems (AIS).
+
+Task: Using the Analytic Hierarchy Process (AHP), judge how important each criterion is
+when choosing an AIS-based security solution for Internet of Things (IoT) networks,
+where many devices have limited memory, processing power and battery.
+
+Criteria:
+AD  - Adaptive: learns and changes behaviour as attacks change
+SL  - Self-learning: updates its own detectors without new rules from an operator
+RES - Resiliency: recovers to a secure state after an attack (self-healing)
+DEF - Response/defense: acts against an attack, not only detects it
+ST  - Self-tolerance: avoids reacting to normal traffic (fewer false positives)
+LH  - Lightweight: runs at low computing cost on constrained devices
+DS  - Distributed: spreads processing across nodes, not one central server
+
+Use the Saaty scale:
+1 = equally important, 3 = moderately more important, 5 = strongly more important,
+7 = very strongly more important, 9 = extremely more important (2, 4, 6, 8 = in between).
+If the second criterion is more important, use the reciprocal (1/3, 1/5, 1/7, 1/9 ...).
+
+Give all 21 pairwise comparisons in exactly this format and order, one per line:
+AD vs SL =
+AD vs RES =
+AD vs DEF =
+AD vs ST =
+AD vs LH =
+AD vs DS =
+SL vs RES =
+SL vs DEF =
+SL vs ST =
+SL vs LH =
+SL vs DS =
+RES vs DEF =
+RES vs ST =
+RES vs LH =
+RES vs DS =
+DEF vs ST =
+DEF vs LH =
+DEF vs DS =
+ST vs LH =
+ST vs DS =
+LH vs DS =
+
+Then show the full 7x7 pairwise comparison matrix (rows and columns in the order
+AD, SL, RES, DEF, ST, LH, DS).
+
+Finally, give a one-sentence reason for each criterion's importance.
+Keep your judgments consistent (if A > B and B > C, then A should be > C).
