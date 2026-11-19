@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} img{max-width:100%} [hidden]{display:none!important}</style>
+<title>AIS Ranking Framework</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky header + tab bar over one centred column; each tab is a stack of panels. */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#13222B; --muted:#586873; --line:#D9E1E5; --soft:#E9EFF1;
+  --m1:#2E6BD6; --m2:#C9711C; --m3:#7B4FC4; --m4:#0F7A84;
+  --r1:#2E6BD6; --r2:#2E8B57; --r3:#B83280; --r4:#0F7A84; --r5:#7B4FC4; --r6:#C9711C;
+  --yes:#1E8550; --no:#B4473A; --hot:#D2453A; --accent:#0F7A84;
+  --f-head:"Space Grotesk",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-num:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E161B; --surface:#152129; --ink:#E4ECF0; --muted:#94A6B0; --line:#273740; --soft:#1C2A33;
+  --m1:#79A6F2; --m2:#EDA45C; --m3:#AE8EE6; --m4:#45B7C0; --r1:#79A6F2; --r2:#5CC48A; --r3:#E77BB8; --r4:#45B7C0; --r5:#AE8EE6; --r6:#EDA45C;  --yes:#4CC386; --no:#E57B6E; --hot:#F0705F; --accent:#45B7C0; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0E161B; --surface:#152129; --ink:#E4ECF0; --muted:#94A6B0; --line:#273740; --soft:#1C2A33;
+  --m1:#79A6F2; --m2:#EDA45C; --m3:#AE8EE6; --m4:#45B7C0; --r1:#79A6F2; --r2:#5CC48A; --r3:#E77BB8; --r4:#45B7C0; --r5:#AE8EE6; --r6:#EDA45C;  --yes:#4CC386; --no:#E57B6E; --hot:#F0705F; --accent:#45B7C0; color-scheme:dark; }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px;padding-block:14px 8px}
+h1{font:700 22px/1.2 var(--f-head);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.pill.warn{color:var(--m2);border-color:color-mix(in srgb,var(--m2) 45%,var(--line))}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
+nav.tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,td.tog:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:22px 48px}
+section.view{display:flex;flex-direction:column;gap:18px}
+section.view[hidden]{display:none}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font:600 18px/1.25 var(--f-head);margin:0 0 4px}
+h3{font:600 15px/1.3 var(--f-head);margin:0 0 6px}
+p{margin:0 0 10px;max-width:68ch}
+.note{color:var(--muted);font-size:13px}
+.eyebrow{font:600 11px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+th{background:var(--soft);font-weight:600;font-size:12.5px;color:var(--muted)}
+td.l,th.l{text-align:left}
+tr:last-child td{border-bottom:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:13px}
+.y{color:var(--yes);font-weight:700}.n{color:var(--no);font-weight:700}
+td.tog{cursor:pointer;user-select:none}
+td.tog:hover{background:var(--soft)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px}
+.m1{color:var(--m1)}.m2{color:var(--m2)}.m3{color:var(--m3)}.m4{color:var(--m4)}
+.bg1{background:var(--m1)}.bg2{background:var(--m2)}.bg3{background:var(--m3)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}.seg button{border:0;border-radius:0;border-right:1px solid var(--line)}.seg button:last-child{border-right:0}.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.best{border:2px solid var(--accent)}
+.h2h td{font-size:12.5px}.h2h .ah{color:var(--yes);font-weight:600}.h2h .bh{color:var(--muted)}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,195px),1fr))}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface);border-top:4px solid var(--c)}
+.card .big{font:700 30px/1.1 var(--f-head)}
+.card .lab{font-size:13px;color:var(--muted)}
+.rank1{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+button,.btn{font:600 13px var(--f-body);padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button:hover{border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.levels{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.lv{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.lv label{font-size:12.5px;font-weight:600}
+.lv .val{font:600 13px var(--f-num)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.ok{color:var(--yes);font-weight:600}.bad{color:var(--no);font-weight:600}
+svg text{fill:var(--muted);font:12px var(--f-body)}
+svg .lbl{fill:var(--ink);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.heat{font-family:var(--f-num);font-size:12.5px}
+.heat td.nf{color:var(--muted);opacity:.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--f-num)}
+details summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--accent)}
+.steps{margin:0;padding-left:18px;font-size:13.5px} .steps li{margin-bottom:4px}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="hrow">
+      <div>
+        <h1>Ranking AIS Solutions for IoT Security</h1>
+        <div class="sub">MCDM framework on Table 9 of Aldhaheri et al. (2020) · Aila Rainelle Medina · Rohan Bhandari · Saroj Dahal</div>
+      </div>
+      <div class="row"><span class="pill warn" id="dataBadge" hidden>Edited data</span><span class="pill" id="sizeBadge"></span></div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview">Overview</a><a href="#data">Data</a><a href="#weights">Weights</a><a href="#rankings">Rankings</a><a href="#sensitivity">Sensitivity</a><a href="#method">Method</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="panel" id="srvMsg" hidden></div>
+<!-- ================= OVERVIEW ================= -->
+<section class="view" id="v-overview">
+  <div class="panel">
+    <div class="eyebrow">Final ranking</div>
+    <h2>Average of the six rankings</h2>
+    <p class="note">TOPSIS with AHP 1 (Claude), AHP 2 (ChatGPT) and AHP 3 (Gemini) weights, PROMETHEE I and II with Entropy weights, and VIKOR with CRITIC weights. The final rank is the rank of the average (1 = best). The best alternative is then decided by the sensitivity analysis.</p>
+    <div class="cards" id="winners"></div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))">
+    <div class="panel"><h3>Ranking table</h3><div class="tbl" id="finalTbl"></div></div>
+    <div class="panel"><h3>Where each ranking places each study</h3>
+      <div class="legend" id="rankLegend"></div>
+      <div id="rankChart" style="overflow-x:auto"></div>
+      <h3 style="margin-top:12px">Agreement between the rankings (Spearman rank correlation)</h3>
+      <div class="tbl" id="agreeTbl"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DATA ================= -->
+<section class="view" id="v-data" hidden>
+  <div class="panel">
+    <div class="eyebrow">Decision table · Table 9 of Aldhaheri et al. (2020)</div>
+    <h2>Studies and AIS properties</h2>
+    <p class="note">Click a ✓ or ✗ to try a change; everything recalculates in Python. <b>Reload data file</b> goes back to <span class="num">Table9_Data.xlsx</span>. S12 Lightweight was not reported in the paper and is counted as ✗.</p>
+    <div class="row" style="margin-bottom:12px">
+      <label class="btn" for="fileIn">Import Excel…</label><input type="file" id="fileIn" accept=".xlsx" hidden>
+      <button id="resetData">Reload data file</button>
+      <span class="note" id="importMsg"></span>
+    </div>
+    <div class="tbl" id="dataTbl"></div>
+    <p class="note" id="dataCheck" style="margin-top:10px"></p>
+  </div>
+  <div class="panel"><h3>Criteria</h3><div class="tbl" id="critTbl"></div></div>
+</section>
+
+<!-- ================= WEIGHTS ================= -->
+<section class="view" id="v-weights" hidden>
+  <div class="panel">
+    <h2>Criterion weights</h2>
+    <p class="note">AHP weights come from three experts (language models asked the same question). CRITIC and Entropy are calculated from the data table.</p>
+    <div class="legend" id="wLegend"></div>
+    <div id="wChart" style="overflow-x:auto"></div>
+    <div class="tbl" id="wTbl" style="margin-top:10px"></div>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <h3>AHP expert judgments</h3>
+      <div class="row" style="margin-bottom:10px"><div class="seg" id="expSeg"></div><span id="crOut"></span></div>
+      <p class="note">Pairwise comparison matrix on the Saaty scale (row vs column). Weight = geometric mean of the row, divided by the total. Consistency ratio CR must be below 0.10.</p>
+      <div class="tbl" id="ahpMat"></div>
+      <h3 style="margin-top:14px">Consistency of the three experts</h3><div class="tbl" id="crTbl"></div>
+    </div>
+    <div class="panel">
+      <h3>CRITIC: spread × conflict</h3><div class="tbl" id="criticTbl"></div>
+      <h3 style="margin-top:14px">Entropy: rare properties weigh more</h3><div class="tbl" id="entTbl"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RANKINGS ================= -->
+<section class="view" id="v-rankings" hidden>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
+    <div class="panel" style="border-top:4px solid var(--r1)"><div class="eyebrow">Rankings 1–3 · AHP weights →</div><h2 class="m1">TOPSIS</h2>
+      <p class="note">Closeness to the ideal solution, CC = D− / (D+ + D−). Higher = better.</p>
+      <div class="row" style="margin-bottom:8px"><div class="seg" id="topSeg"></div></div>
+      <div class="tbl" id="topTbl"></div></div>
+    <div class="panel" style="border-top:4px solid var(--r6)"><div class="eyebrow">Ranking 6 · CRITIC weights →</div><h2 class="m2">VIKOR</h2>
+      <p class="note">Compromise of group utility S and regret R. Lower Q = better.</p>
+      <div class="row" style="margin-bottom:8px"><label for="vIn" class="note">v (weight on S)</label><input type="range" id="vIn" min="0" max="1" step="0.05" value="0.5" style="max-width:160px"><span class="num" id="vOut">0.50</span></div>
+      <div class="tbl" id="vikTbl"></div><p class="note" id="vikCond" style="margin-top:8px"></p></div>
+    <div class="panel" style="border-top:4px solid var(--r4)"><div class="eyebrow">Ranking 4 · Entropy weights →</div><h2 class="m4">PROMETHEE I</h2>
+      <p class="note">Partial ranking: a outranks b only if it is at least as good on both Φ+ (higher) and Φ− (lower). If the flows disagree, the pair is incomparable. Level 1 = best; for the average, levels are turned into ranks (same level = same rank).</p>
+      <div class="tbl" id="pro1Tbl"></div><p class="note" id="pro1Inc" style="margin-top:8px"></p>
+      <details style="margin-top:8px"><summary>Show pairwise relations</summary><div class="tbl" id="pro1Rel" style="margin-top:8px"></div><p class="note" style="margin-top:6px">Row vs column: P = outranks, p = is outranked by, I = indifferent, R = incomparable.</p></details></div>
+    <div class="panel" style="border-top:4px solid var(--r5)"><div class="eyebrow">Ranking 5 · Entropy weights →</div><h2 class="m3">PROMETHEE II</h2>
+      <p class="note">Complete ranking: net flow Φ = Φ+ − Φ− (usual preference function). Higher = better.</p><div class="tbl" id="proTbl"></div></div>
+  </div>
+</section>
+
+<!-- ================= SENSITIVITY ================= -->
+<section class="view" id="v-sensitivity" hidden>
+  <div class="panel">
+    <div class="eyebrow">Triantaphyllou &amp; Sánchez (1997)</div>
+    <h2>How far can one weight move before a ranking changes?</h2>
+    <p class="note">δ′ = smallest change in one criterion weight, as a % of that weight, that swaps two alternatives. Negative = the weight must rise; positive = it must fall. N/F = no change can swap them. Smaller |δ′| = more sensitive. Studies with identical rows are analysed as one group (e.g. S11/S16).</p>
+    <p class="note" id="sensStatus"></p>
+    <div class="tbl" id="sensSum"></div>
+  </div>
+  <div class="panel best" id="decPanel" hidden>
+    <div class="eyebrow">Decision</div>
+    <h2 id="bestOut"></h2>
+    <p class="note">Contenders = the top 3 of the final ranking plus every study that is first in at least one ranking. For each pair of contenders and each ranking: who is ahead, and how big a weight change (δ′) would reverse that. The best alternative leads its rivals most often; a tie is broken by whose weakest lead needs the larger change.</p>
+    <div class="tbl" id="decTbl"></div>
+    <details style="margin-top:10px"><summary>Show every head-to-head comparison</summary><div class="tbl h2h" id="h2hTbl" style="margin-top:8px"></div></details>
+  </div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="row"><label for="sensM" class="note">Ranking</label><select id="sensM"></select></div>
+    </div>
+    <div class="tbl" id="sensCrit"></div>
+    <h3 style="margin-top:14px">δ′ for every pair (%)</h3>
+    <p class="note" id="sensHow"></p>
+    <div class="tbl heat" id="sensHeat"></div>
+  </div>
+</section>
+
+<!-- ================= METHOD ================= -->
+<section class="view" id="v-method" hidden>
+  <div class="grid">
+    <div class="panel"><h3>AHP (three experts)</h3><ol class="steps"><li>Each expert gives 21 pairwise judgments (Saaty 1–9)</li><li>Build the 7 × 7 matrix (reverse = reciprocal)</li><li>Geometric mean of each row, divided by the total → weights</li><li>Consistency ratio CR = CI / RI must be below 0.10</li></ol></div>
+    <div class="panel"><h3>CRITIC</h3><ol class="steps"><li>Normalise each column: (x − min)/(max − min)</li><li>Standard deviation of each column (spread)</li><li>Correlation matrix; conflict = Σ(1 − ρ)</li><li>C = spread × conflict; weight = C / ΣC</li></ol></div>
+    <div class="panel"><h3>Entropy</h3><ol class="steps"><li>Shares p = x / column total</li><li>E = −(1/ln n) Σ p ln p</li><li>Divergence 1 − E</li><li>Weight = (1 − E) / Σ(1 − E)</li></ol></div>
+    <div class="panel"><h3>TOPSIS</h3><ol class="steps"><li>Vector-normalise: x / √Σx²</li><li>Multiply by the weights</li><li>Ideal best A+ and worst A−</li><li>Distances D+, D−; CC = D− / (D+ + D−)</li></ol></div>
+    <div class="panel"><h3>VIKOR</h3><ol class="steps"><li>Distance from best: (f* − x)/(f* − f−)</li><li>S = weighted sum, R = largest weighted term</li><li>Q = v·S′ + (1 − v)·R′ (rescaled)</li><li>Check advantage (DQ = 1/(n−1)) and stability</li></ol></div>
+    <div class="panel"><h3>PROMETHEE I</h3><ol class="steps"><li>Same Φ+ and Φ− as PROMETHEE II</li><li>a outranks b if Φ+(a) ≥ Φ+(b) and Φ−(a) ≤ Φ−(b), one strictly</li><li>Equal on both = indifferent; flows disagree = incomparable</li><li>Partial ranking in levels (no one outranks level 1)</li></ol></div>
+    <div class="panel"><h3>PROMETHEE II</h3><ol class="steps"><li>Usual preference: P = 1 if a beats b on a criterion</li><li>π(a,b) = Σ w·P</li><li>Φ+ = row sum/(n−1), Φ− = column sum/(n−1)</li><li>Net flow Φ = Φ+ − Φ−</li></ol></div>
+    <div class="panel"><h3>Final ranking and decision</h3><ol class="steps"><li>Six rankings on the same 1–20 scale (PROMETHEE I levels → ranks)</li><li>Final rank = rank of the average of the six</li><li>Sensitivity analysis on all six rankings</li><li>Best = the contender that holds its lead against the others most often</li></ol></div>
+  </div>
+  <div class="panel"><h3>Notes</h3>
+    <p>All calculations run in Python. <span class="num">run_frontend.py</span> passes the table to <span class="num">frontend_api.py</span>, which calls the functions in the scripts (AHP weight.py, TOPSIS-AHP method.py, Final ranking.py, Sensitivity analysis.py and the rest) and sends the results back. This page only displays them.</p>
+    <p>Sensitivity: PROMETHEE II net flow is a weighted sum, so the closed-form formula δ = (Pⱼ − Pᵢ)/(aⱼₖ − aᵢₖ) is used, with δ < wₖ required. PROMETHEE I applies the same formula to Φ+ and Φ− separately. TOPSIS and VIKOR are not weighted sums, so δ is found by moving the weight step by step until the pair swaps.</p>
+    <p class="note">Case study: Aldhaheri et al. (2020), Journal of Network and Computer Applications, 157, 102537. Sensitivity method: Triantaphyllou &amp; Sánchez (1997), Decision Sciences, 28(1), 151–194.</p>
+  </div>
+</section>
+</main>
+<script>
+// ===== This page only DISPLAYS results. =====
+// Every calculation (weights, rankings, final ranking, sensitivity) and reading the Excel file is done in Python:
+// the page sends the table to run_frontend.py, which runs the Python scripts through frontend_api.py
+// and sends the results back as JSON.
+const CRIT = ["AD","SL","RES","DEF","ST","LH","DS"];
+const CRIT_NAMES = ["Adaptive","Self-learning","Resiliency","Response/defense","Self-tolerance","Lightweight","Distributed"];
+const CRIT_DESC = ["Learns and changes behaviour as attacks change","Updates its own detectors without new rules","Recovers to a secure state after an attack","Acts against an attack, not only detects it","Avoids reacting to normal traffic","Runs at low cost on constrained devices","Spreads processing across nodes"];
+const RCOL = ["--r1","--r2","--r3","--r4","--r5","--r6"];          // colour of each of the six rankings
+
+// ===== Talking to the Python server =====
+async function getJSON(url){ const r = await fetch(url); const j = await r.json(); if(!r.ok || j.error) throw new Error(j.error || r.status); return j; }
+async function postJSON(url, body){
+  const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); if(!r.ok || j.error) throw new Error(j.error || r.status); return j; }
+const payload = () => ({ data: S.data.map(r=>({id:r.id, v:r.v})), v: S.v });
+
+// ===== App state =====
+const S = { data: [], v: 0.5, ver: 0, edited: false, exp: 0, top: 0 };
+let R = null, sensCache = {ver:-1, res:null}, sensJob = 0;
+const $ = id => document.getElementById(id);
+const f = (x,d=4) => (x===null||x===undefined||isNaN(x)) ? "–" : Number(x).toFixed(d);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const frac = x => x>=1 ? f(x,0) : "1/"+f(1/x,0);
+
+function showServerMsg(html){ const m=$("srvMsg"); m.innerHTML=html; m.hidden=!html; }
+async function compute(){
+  const ver = S.ver;
+  try {
+    const res = await postJSON("/api/compute", payload());   // Python calculates everything
+    if (ver !== S.ver) return;                                // a newer change is already on its way
+    R = res; showServerMsg(""); render();
+  } catch(err) {
+    showServerMsg(`<b class="bad">The Python server did not answer:</b> ${esc(err.message)}. Start the page with <span class="num">python run_frontend.py</span> and keep that terminal open.`);
+  }
+}
+const problems = () => (R && R.problems) ? R.problems : [];
+
+// ===== Rendering helpers =====
+function table(head, rows, opts={}){
+  const L=opts.left||1; const th = head.map((h,i)=>`<th class="${i<L?'l':''}">${h}</th>`).join("");
+  const tr = rows.map(r=>`<tr class="${r.cls||''}">${r.cells.map((c,i)=>`<td class="${i<L?'l':''} ${typeof c==='number'?'num':''}">${c}</td>`).join("")}</tr>`).join("");
+  return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+const order = rank => R.names.map((_,i)=>i).sort((a,b)=>rank[a]-rank[b]);
+const firsts = rank => R.names.filter((_,i)=>rank[i]===1);
+function seg(el, labels, sel, onPick){
+  el.innerHTML = labels.map((l,i)=>`<button type="button" aria-pressed="${i===sel}" data-i="${i}">${esc(l)}</button>`).join("");
+  el.onclick = ev => { const b=ev.target.closest("button[data-i]"); if(b) onPick(+b.dataset.i); };
+}
+
+// ===== Overview =====
+function renderOverview(){
+  const {names,rankings,avg,fin}=R;
+  const fi = order(fin)[0], lead = firsts(fin);
+  const sens = sensCache.ver===S.ver ? sensCache.res : null;
+  let cards = `<div class="card" style="--c:var(--accent)"><div class="eyebrow">Final ranking · 1st</div><div class="big">${lead.map(esc).join(" / ")}</div><div class="lab">${esc(S.data[fi].alg)}</div><div class="lab num">average rank ${f(avg[fi],2)} of 6</div></div>`;
+  cards += sens ? `<div class="card best" style="--c:var(--accent)"><div class="eyebrow">Best · decided by sensitivity</div><div class="big">${esc(sens.best)}</div><div class="lab">leads its rivals in ${sens.decision[0].wins} of ${sens.comparisons} comparisons</div><div class="lab num">weakest lead ${sens.decision[0].weakest===null?'N/F':f(sens.decision[0].weakest,1)+'%'}</div></div>`
+               : `<div class="card" style="--c:var(--muted)"><div class="eyebrow">Best · decided by sensitivity</div><div class="big" style="font-size:20px">Not run yet</div><div class="lab"><a href="#sensitivity">Open the Sensitivity tab</a> to run it (about a minute).</div></div>`;
+  rankings.forEach((r,k)=>{ const w=firsts(r.rank), i=names.indexOf(w[0]);
+    cards += `<div class="card" style="--c:var(${RCOL[k]})"><div class="eyebrow">${esc(r.name)} · 1st</div><div class="big">${w.map(esc).join(" / ")}</div><div class="lab">${esc(S.data[i].alg)}</div><div class="lab num">${r.scoreName}: ${f(r.score[i], r.scoreName==="level"?0:4)}</div></div>`; });
+  $("winners").innerHTML = cards;
+  const o = names.map((_,i)=>i).sort((a,b)=>avg[a]-avg[b]);
+  $("finalTbl").innerHTML = table(["Study","AIS family",...rankings.map(r=>r.short),"Average","Final"],
+    o.map(i=>({cls: fin[i]===1?'rank1':'', cells:[`<b>${esc(names[i])}</b>`,esc(S.data[i].family||S.data[i].alg),...rankings.map(r=>r.rank[i]),f(avg[i],2),`<b>${fin[i]}</b>`]})), {left:2})
+    + `<p class="note" style="padding:8px 10px;margin:0">T-AHP1/2/3 = TOPSIS with AHP 1 (Claude) / AHP 2 (ChatGPT) / AHP 3 (Gemini) · P1-Ent, P2-Ent = PROMETHEE I, II with Entropy · V-CRITIC = VIKOR with CRITIC.</p>`;
+  // rank dot chart: one row per study, one dot per ranking
+  $("rankLegend").innerHTML = rankings.map((r,k)=>`<span><i class="dot" style="background:var(${RCOL[k]})"></i>${esc(r.short)}</span>`).join("");
+  const n=names.length, rowH=24, W=560, padL=46, padR=16, top=26, H=top+n*rowH+12, x=r=>padL+(W-padL-padR)*(r-1)/Math.max(1,n-1);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:420px;max-width:${W*1.4}px" role="img" aria-label="Rank of each study under each of the six rankings">`;
+  for(let r=1;r<=n;r+= (n>12?2:1)) s+=`<text x="${x(r)}" y="${top-12}" text-anchor="middle">${r}</text>`;
+  for(let r=1;r<=n;r++) s+=`<line x1="${x(r)}" x2="${x(r)}" y1="${top-6}" y2="${H-8}" stroke="var(--line)"/>`;
+  o.forEach((i,row)=>{ const y=top+row*rowH+rowH/2, rs=rankings.map(r=>r.rank[i]);
+    s+=`<text class="lbl" x="${padL-10}" y="${y+4}" text-anchor="end">${esc(names[i])}</text>`;
+    s+=`<line x1="${x(Math.min(...rs))}" x2="${x(Math.max(...rs))}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="2" opacity=".3"/>`;
+    rs.forEach((rv,k)=> s+=`<circle cx="${x(rv)}" cy="${y-7.5+k*3}" r="4.2" fill="var(${RCOL[k]})"><title>${esc(rankings[k].name)}: rank ${rv}</title></circle>`); });
+  s+=`<text x="${(padL+W-padR)/2}" y="${H}" text-anchor="middle">rank (1 = best)</text></svg>`;
+  $("rankChart").innerHTML=s;
+  $("agreeTbl").innerHTML = table(["",...rankings.map(r=>r.short)], rankings.map((r,i)=>({cells:[`<b>${r.short}</b>`,...R.agree[i].map(x=>f(x,2))]})));
+}
+
+// ===== Data =====
+function renderData(){
+  const head = ["Study","AIS algorithm",...CRIT,"Score","AIS family"];
+  const rows = S.data.map((r,i)=>`<tr><td class="l"><b>${esc(r.id)}</b></td><td class="l">${esc(r.alg)}</td>`
+    + r.v.map((x,k)=>`<td class="tog ${x?'y':'n'}" tabindex="0" role="button" aria-label="${esc(r.id)} ${CRIT_NAMES[k]}: ${x?'present':'absent'}" data-i="${i}" data-k="${k}">${x?'✓':'✗'}</td>`).join("")
+    + `<td class="num">${r.v.reduce((a,b)=>a+b,0)}</td><td class="l note">${esc(r.family)}</td></tr>`).join("");
+  const tot = `<tr><td class="l"><b>Total</b></td><td></td>${CRIT.map((_,k)=>`<td class="num"><b>${S.data.reduce((s,r)=>s+r.v[k],0)}</b></td>`).join("")}<td></td><td></td></tr>`;
+  $("dataTbl").innerHTML = `<table><thead><tr>${head.map((h,i)=>`<th class="${i<2||i===head.length-1?'l':''}">${h}</th>`).join("")}</tr></thead><tbody>${rows}${tot}</tbody></table>`;
+  const pr = problems(); $("dataCheck").innerHTML = pr.length ? `<span class="bad">Check the data:</span> ${pr.map(esc).join(" ")}` : `<span class="ok">Ready:</span> every criterion varies, so all methods can run.`;
+  $("critTbl").innerHTML = table(["Code","Criterion","Meaning"], CRIT.map((c,k)=>({cells:[`<b>${c}</b>`,CRIT_NAMES[k],CRIT_DESC[k]]})), {left:3});
+}
+
+// ===== Weights =====
+function barChart(sets){
+  const W=680,H=230,pl=40,pb=34,pt=10, cw=(W-pl-10)/CRIT.length, bw=cw/(sets.length+1.2);
+  const mx=Math.max(...sets.flatMap(s=>s.w)), ymax=Math.ceil(mx*10)/10, y=v=>pt+(H-pt-pb)*(1-v/ymax);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:540px" role="img" aria-label="Weights by criterion and method">`;
+  for(let g=0; g<=ymax+1e-9; g+=0.1){ s+=`<line x1="${pl}" x2="${W-10}" y1="${y(g)}" y2="${y(g)}" stroke="var(--line)"/><text x="${pl-6}" y="${y(g)+4}" text-anchor="end">${g.toFixed(1)}</text>`; }
+  CRIT.forEach((c,k)=>{ const x0=pl+k*cw+cw/2-sets.length*bw/2;
+    sets.forEach((st,m)=>{ const v=st.w[k]; s+=`<rect x="${x0+m*bw}" y="${y(v)}" width="${bw-2}" height="${y(0)-y(v)}" fill="var(${st.c})" rx="2"><title>${st.n} ${c}: ${v.toFixed(3)}</title></rect>`; });
+    s+=`<text class="lbl" x="${pl+k*cw+cw/2}" y="${H-12}" text-anchor="middle">${c}</text>`; });
+  return s+`</svg>`;
+}
+function renderWeights(){
+  const sets=[...R.ahp.map((a,i)=>({n:a.label,w:a.w,c:RCOL[i]})),{n:"CRITIC",w:R.critic.w,c:"--r6"},{n:"Entropy",w:R.entropy.w,c:"--r5"}];
+  $("wLegend").innerHTML = sets.map(st=>`<span><i class="dot" style="background:var(${st.c})"></i>${esc(st.n)}</span>`).join("");
+  $("wChart").innerHTML = barChart(sets);
+  $("wTbl").innerHTML = table(["Weights",...CRIT,"Sum"], sets.map(st=>({cells:[`<b>${esc(st.n)}</b>`,...st.w.map(x=>f(x,3)),f(st.w.reduce((p,q)=>p+q,0),3)]})));
+  seg($("expSeg"), R.ahp.map(a=>a.label), S.exp, i=>{ S.exp=i; renderWeights(); });
+  const a=R.ahp[S.exp];
+  $("crOut").innerHTML = `CR = <span class="num">${f(a.CR,4)}</span> ${a.CR<0.1?'<span class="ok">consistent</span>':'<span class="bad">not consistent (needs &lt; 0.10)</span>'}`;
+  $("ahpMat").innerHTML = table(["",...CRIT,"Geo. mean","Weight"], CRIT.map((cd,i)=>({cells:[`<b>${cd}</b>`,...a.A[i].map(frac),f(a.gm[i],3),`<b>${f(a.w[i],3)}</b>`]})));
+  $("crTbl").innerHTML = table(["Expert","CR","Most important","Least important"], R.ahp.map(x=>{ const o=CRIT.map((_,k)=>k).sort((p,q)=>x.w[q]-x.w[p]);
+    return {cells:[`<b>${esc(x.label)}</b>`,f(x.CR,4),`${CRIT[o[0]]} (${f(x.w[o[0]],3)})`,`${CRIT[o[6]]} (${f(x.w[o[6]],3)})`]}; }));
+  const c=R.critic, e=R.entropy;
+  $("criticTbl").innerHTML = table(["","σ (spread)","Σ(1−ρ) conflict","C","Weight"], CRIT.map((cd,k)=>({cells:[`<b>${cd}</b>`,f(c.sd[k],3),f(c.conflict[k],3),f(c.C[k],3),`<b>${f(c.w[k],3)}</b>`]})));
+  $("entTbl").innerHTML = table(["","Count of ✓","Entropy E","1 − E","Weight"], CRIT.map((cd,k)=>({cells:[`<b>${cd}</b>`,S.data.reduce((s,r)=>s+r.v[k],0),f(e.E[k],3),f(e.div[k],3),`<b>${f(e.w[k],3)}</b>`]})));
+}
+
+// ===== Rankings =====
+function renderRankings(){
+  const {names,rankings,vikor,p1,p2}=R;
+  seg($("topSeg"), rankings.slice(0,3).map(r=>r.name.replace("TOPSIS-","")), S.top, i=>{ S.top=i; renderRankings(); });
+  const T=rankings[S.top], td=R.topsis[T.name];
+  $("topTbl").innerHTML = table(["Rank","Study","D+","D−","CC","T-AHP1","T-AHP2","T-AHP3"], order(T.rank).map(i=>({cls:T.rank[i]===1?'rank1':'',
+    cells:[`<b>${T.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(td.dp[i]),f(td.dm[i]),`<b>${f(T.score[i])}</b>`,rankings[0].rank[i],rankings[1].rank[i],rankings[2].rank[i]]})));
+  const V=rankings[5];
+  $("vikTbl").innerHTML = table(["Rank","Study","S","R","Q"], order(V.rank).map(i=>({cls:V.rank[i]===1?'rank1':'',cells:[`<b>${V.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(vikor.S[i]),f(vikor.R[i]),`<b>${f(vikor.Q[i])}</b>`]})));
+  $("vikCond").innerHTML = `C1 acceptable advantage: ${vikor.c1?'<span class="ok">met</span>':'<span class="bad">not met</span>'} · C2 acceptable stability: ${vikor.c2?'<span class="ok">met</span>':'<span class="bad">not met</span>'} → ${vikor.c1&&vikor.c2?`<b>${esc(names[vikor.best])}</b> is the compromise solution`:`compromise set: <b>${vikor.compromise.map(i=>esc(names[i])).join(", ")}</b>`}`;
+  const P1=rankings[3], ordL=names.map((_,i)=>i).sort((a,b)=>p1.level[a]-p1.level[b]||p1.plus[b]-p1.plus[a]);
+  $("pro1Tbl").innerHTML = table(["Level","Rank","Study","Φ+","Φ−","Outranks","Outranked by","Incomparable"], ordL.map(i=>({cls:p1.level[i]===1?'rank1':'',cells:[`<b>${p1.level[i]}</b>`,P1.rank[i],`<b>${esc(names[i])}</b>`,f(p1.plus[i]),f(p1.minus[i]),p1.outranks[i],p1.outrankedBy[i],p1.incomparable[i]]})));
+  $("pro1Inc").innerHTML = p1.incomp.length ? `Incomparable pairs: <b>${p1.incomp.map(([a,b])=>esc(names[a])+"–"+esc(names[b])).join(", ")}</b>` : "No incomparable pairs: PROMETHEE I gives a complete order here.";
+  $("pro1Rel").innerHTML = table(["",...names.map(esc)], names.map((n,a)=>({cells:[`<b>${esc(n)}</b>`,...p1.rel[a].map(x=>x==="R"?`<b class="m2">R</b>`:x==="P"?`<span class="ok">P</span>`:x)]})));
+  const P2=rankings[4];
+  $("proTbl").innerHTML = table(["Rank","Study","Φ+","Φ−","Φ net"], order(P2.rank).map(i=>({cls:P2.rank[i]===1?'rank1':'',cells:[`<b>${P2.rank[i]}</b>`,`<b>${esc(names[i])}</b>`,f(p2.plus[i]),f(p2.minus[i]),`<b>${f(p2.net[i])}</b>`]})));
+}
+
+// ===== Sensitivity (calculated in Python by Sensitivity analysis.py) =====
+async function runSensitivity(){
+  if (sensCache.ver === S.ver) { renderSensitivity(); return; }
+  const job = ++sensJob, ver = S.ver;
+  $("sensStatus").innerHTML = `<span class="spin"></span> calculating in Python… this takes about a minute (TOPSIS and VIKOR search step by step).`;
+  $("decPanel").hidden = true;
+  try {
+    const res = await postJSON("/api/sensitivity", payload());
+    if (job !== sensJob || ver !== S.ver) return;          // the data changed while Python was working
+    sensCache = {ver, res}; renderSensitivity();
+  } catch(err) { if (job === sensJob) $("sensStatus").innerHTML = `<span class="bad">Failed:</span> ${esc(err.message)}`; }
+}
+function heatColor(p){ if(p===null) return ""; const a=Math.abs(p); const t=Math.max(0,Math.min(1,1-Math.log10(Math.max(a,0.1))/Math.log10(300))); return `background:color-mix(in srgb,var(--hot) ${Math.round(t*55)}%,transparent)`; }
+function renderSensitivity(){
+  if (sensCache.ver !== S.ver) { runSensitivity(); return; }
+  const res=sensCache.res, names=R.rankings.map(r=>r.name);
+  if (res.problems && res.problems.length){ $("sensStatus").innerHTML = `<span class="bad">Check the data:</span> ${res.problems.map(esc).join(" ")}`; return; }
+  $("sensStatus").innerHTML = `<span class="ok">Up to date</span> · calculated in Python for the table shown on the Data tab.`;
+  $("sensSum").innerHTML = table(["Ranking","Top","Most critical for 1st place (PT)","Most critical for any pair (PA)","Pair at PA"],
+    names.map((m,k)=>{ const r=res.methods[m], pt=r.ptK, pa=r.paK; return {cells:[`<b style="color:var(${RCOL[k]})">${esc(m)}</b>`,`<b>${esc(r.top)}</b>`,
+      pt===null?"none":`${CRIT[pt]} · <span class="num">${f(r.crit[pt].PT,1)}%</span>`, pa===null?"none":`${CRIT[pa]} · <span class="num">${f(r.crit[pa].PA,1)}%</span>`, pa===null?"–":esc(r.crit[pa].paPair)]}; }));
+  // decision
+  $("decPanel").hidden = false;
+  const b = res.decision[0];
+  $("bestOut").innerHTML = `Best alternative: ${esc(res.best)}`;
+  $("decTbl").innerHTML = table(["Contender","Average rank","1st in (of 6)","Ahead","Behind","Level / incomparable","Weakest lead (δ′)"],
+    res.decision.map((d,i)=>({cls:i===0?'rank1':'',cells:[`<b>${esc(d.contender)}</b>`,f(d.avg,2),d.firsts,`<b>${d.wins}</b> of ${res.comparisons}`,d.behind,d.level,d.weakest===null?'N/F':f(d.weakest,1)+'%']})));
+  $("h2hTbl").innerHTML = table(["Pair",...R.rankings.map(r=>r.short)], res.h2h.map(h=>({cells:[`<b>${esc(h.pair)}</b>`,...h.cells.map(c=>c.startsWith("ahead")?`<span class="ah">${esc(c)}</span>`:`<span class="bh">${esc(c)}</span>`)]})));
+  // one ranking in detail
+  const sel=$("sensM"); if(!sel.options.length) sel.innerHTML = names.map(m=>`<option>${esc(m)}</option>`).join("");
+  const m=sel.value, r=res.methods[m];
+  $("sensCrit").innerHTML = table(["Measure",...CRIT], [
+    {cells:["<b>Feasible swaps</b>",...r.crit.map(c=>c.feasible)]},
+    {cells:["<b>PT: min |δ′| with top (%)</b>",...r.crit.map(c=>c.PT===null?'–':`<span style="${heatColor(c.PT)};padding:2px 6px;border-radius:4px">${f(c.PT,1)}</span>`)]},
+    {cells:["<b>PA: min |δ′| any pair (%)</b>",...r.crit.map(c=>c.PA===null?'–':`<span style="${heatColor(c.PA)};padding:2px 6px;border-radius:4px">${f(c.PA,1)}</span>`)]}]);
+  $("sensHow").textContent = m.startsWith("PROMETHEE II") ? "Closed-form formula from the PDF: δ = (Pj − Pi)/(ajk − aik), feasible only if δ < wk."
+    : m.startsWith("PROMETHEE I") ? "PDF formula applied to Φ+ and Φ− separately; the pair changes when either flow reverses. Only pairs where one study outranks the other are listed."
+    : "Found by moving one weight step by step (others fixed) until the pair swaps.";
+  $("sensHeat").innerHTML = `<table><thead><tr><th class="l">Pair (better – worse)</th>${CRIT.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>`+
+    r.rows.map(row=>`<tr><td class="l">${row.top?'<b>':''}${esc(row.pair)}${row.top?'</b>':''}</td>${row.cells.map(c=>c!==null?`<td style="${heatColor(c)}">${f(c,1)}</td>`:`<td class="nf">N/F</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+}
+
+// ===== Routing and updates =====
+const VIEWS=["overview","data","weights","rankings","sensitivity","method"];
+function current(){ const h=location.hash.slice(1); return VIEWS.includes(h)?h:"overview"; }
+function render(){
+  const v=current();
+  VIEWS.forEach(x=>{ $("v-"+x).hidden = x!==v; });
+  document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current", a.getAttribute("href")==="#"+v?"page":"false"));
+  $("dataBadge").hidden = !S.edited; $("sizeBadge").textContent = `${S.data.length} studies × 7 criteria`;
+  if (!R){ if(v!=="method") $("v-"+v).hidden=true; return; }               // waiting for the first answer from Python
+  if (problems().length && v!=="data" && v!=="method"){ $("v-"+v).hidden=true; $("v-data").hidden=false; renderData(); return; }
+  ({overview:renderOverview,data:renderData,weights:renderWeights,rankings:renderRankings,sensitivity:renderSensitivity,method:()=>{}})[v]();
+}
+function update(){ S.ver++; compute(); }
+window.addEventListener("hashchange", render);
+
+$("dataTbl").addEventListener("click", ev=>{
+  const td=ev.target.closest("td.tog"); if(td){ const i=+td.dataset.i,k=+td.dataset.k; S.data[i].v[k]=1-S.data[i].v[k]; S.edited=true; update(); }
+});
+$("dataTbl").addEventListener("keydown", ev=>{ if((ev.key==="Enter"||ev.key===" ") && ev.target.matches("td.tog")){ ev.preventDefault(); ev.target.click(); }});
+$("resetData").addEventListener("click", ()=>loadDataFile());
+$("vIn").addEventListener("input", ev=>{ S.v=+ev.target.value; $("vOut").textContent=S.v.toFixed(2); update(); });
+$("sensM").addEventListener("change", renderSensitivity);
+
+// ===== Loading data (read by Python with pandas, the same way the scripts read it) =====
+function useTable(res, verb){
+  S.data = res.data; S.edited = !/Table9_Data/i.test(res.file);
+  $("importMsg").innerHTML = `<span class="ok">${verb} ${res.data.length} studies</span> from ${esc(res.file)} [${esc(res.sheet)}]`;
+  update();
+}
+async function loadDataFile(){
+  try { useTable(await getJSON("/api/data"), "Loaded"); }
+  catch(err) { showServerMsg(`<b class="bad">No data yet.</b> This page needs the Python server: run <span class="num">python run_frontend.py</span> in this folder, then use the page it opens. (${esc(err.message)})`); }
+}
+$("fileIn").addEventListener("change", async ev=>{
+  const file=ev.target.files[0]; if(!file) return;
+  try {
+    const r = await fetch("/api/upload", {method:"POST", headers:{"X-Filename": file.name}, body: await file.arrayBuffer()});
+    const res = await r.json(); if(!r.ok || res.error) throw new Error(res.error || r.status);
+    useTable(res, "Imported");
+  } catch(err) { $("importMsg").innerHTML=`<span class="bad">Could not import:</span> ${esc(err.message)}. Use a file laid out like Table9_Data.xlsx (headers on row 4, AD … DS, ✓/✗ values).`; }
+  ev.target.value="";
+});
+render();
+loadDataFile();
+</script>
+</body>
+</html>
